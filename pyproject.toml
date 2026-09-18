@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmcost"
+version = "0.1.0"
+description = "Exact list-price cost of LLM API usage, computed from provider-returned usage objects."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Gianluigi D'Alessandro", email = "gianluigidalessandro23@gmail.com" }]
+requires-python = ">=3.9"
+keywords = ["llm", "cost", "pricing", "tokens", "openai", "anthropic", "usage"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Repository = "https://github.com/gian-g3dai/llmcost"
+
+[project.optional-dependencies]
+testing = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+llmcost = ["prices/*.json"]
+
+[tool.black]
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

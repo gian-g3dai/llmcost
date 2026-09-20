@@ -25,8 +25,8 @@ def test_openai_estimate_matches_cost_on_equivalent_usage():
             "input_tokens_details": {"cached_tokens": 40_000},
         },
     )
-    # 10000*1.25 + 40000*0.13 + 2000*10 = 37700 / 1M
-    assert est.total == exact.total == Decimal("0.0377")
+    # 10000*1.25 + 40000*0.125 + 2000*10 = 37500 / 1M
+    assert est.total == exact.total == Decimal("0.0375")
 
 
 def test_anthropic_estimate_splits_input_cached_and_writes():
@@ -84,3 +84,15 @@ def test_long_context_estimate():
 def test_unknown_provider_raises():
     with pytest.raises(ValueError, match="Unsupported provider"):
         estimate("gemini", "gemini-3-pro", input_tokens=1)
+
+
+def test_openai_estimate_bills_cache_writes_on_models_that_charge():
+    """gpt-5.6-terra: writes at $2.50 replace the $2.00 input rate."""
+    est = estimate(
+        "openai",
+        "gpt-5.6-terra",
+        input_tokens=10_000,
+        cache_write_tokens=10_000,
+    )
+    assert [(l.dimension, l.quantity) for l in est.lines] == [("cache_write", 10_000)]
+    assert est.total == Decimal("0.025")

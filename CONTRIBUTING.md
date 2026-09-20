@@ -29,7 +29,11 @@ Price-only changes are released liberally as patch versions.
     "unit": "per_1M_tokens",
     "rates": { "input": 0.0, "output": 0.0 },
     "batch_multiplier": 0.5,          // omit if no batch discount
-    "per_call": { "web_search": 0.01 }, // server-side tools, $/invocation
+    "batch": { "cached": null },      // per-dimension batch exceptions: null =
+                                      //   no batch discount for that dimension
+    "per_call": { "web_search": 0.01 }, // server-side tools, $/invocation (0 = free)
+    "fast": { "input": 10.0, ... },     // fast-mode rate overrides, if offered
+    "inference_geo": { "us": 1.1 },     // region multipliers on all token rates
     "tiers": [                          // long-context repricing, if any
       { "over_input_tokens": 272000, "rates": { "input": 0.0, "output": 0.0 } }
     ]

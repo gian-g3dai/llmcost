@@ -21,7 +21,7 @@ Design invariants (see the project README for the full rationale):
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -35,11 +35,18 @@ from .book import (
 )
 from .providers import anthropic, openai
 
-#: Request tiers understood in v0.1. `"batch"` applies the price entry's
+#: Request tiers understood. `"batch"` applies the price entry's
 #: `batch_multiplier` to token rates (per-call tool prices are not
-#: discounted); an entry without a `batch_multiplier` bills batch requests at
-#: standard rates, per the no-discount convention.
-_KNOWN_TIERS = ("standard", "batch")
+#: discounted), subject to the entry's per-dimension `batch_rates`
+#: exceptions; an entry without a `batch_multiplier` bills batch requests at
+#: standard rates, per the no-discount convention. `"priority"` (Anthropic
+#: Priority Tier) has no published per-token price — it is billed against a
+#: capacity commitment — so it is costed at standard rates and surfaced.
+_KNOWN_TIERS = ("standard", "batch", "priority")
+
+#: `inference_geo` values that carry no pricing modifier: the global default,
+#: and the value Anthropic reports on models that predate the feature.
+_NEUTRAL_GEOS = frozenset({"global", "not_available"})
 
 _COMPUTE = {
     "anthropic": anthropic.compute,
@@ -57,7 +64,9 @@ class CostBreakdown:
         tier: Request tier the cost was computed for.
         lines: Per-dimension charges; `total` is their exact sum.
         unpriced: Dimensions present in the usage with nonzero quantity but
-            no applicable rate — billed zero, never silently.
+            no applicable rate — billed zero, never silently. Also carries
+            request-context markers the book could not price:
+            `"priority_tier"`, `"fast_mode"`, `"inference_geo:<region>"`.
         priced: False when the `(provider, model)` pair was missing from the
             price book entirely (everything observed lands in `unpriced`).
     """
@@ -117,12 +126,24 @@ def _lookup_entry(
     return entry_from_rates(rates) if rates is not None else None
 
 
+def _detect(usage: Any, field_name: str, explicit: Optional[str]) -> Optional[str]:
+    """Explicit argument wins; otherwise read the request-context field the
+    provider echoes in its usage object (Anthropic reports `service_tier`,
+    `inference_geo` and, in fast mode, `speed`)."""
+    if explicit is not None:
+        return explicit
+    value = get_field(usage, field_name)
+    return str(value) if value is not None else None
+
+
 def cost(
     provider: str,
     model: str,
     usage: Any,
     *,
-    tier: str = "standard",
+    tier: Optional[str] = None,
+    speed: Optional[str] = None,
+    inference_geo: Optional[str] = None,
     at: DateLike = None,
     prices: Optional[PriceBook] = None,
 ) -> CostBreakdown:
@@ -136,8 +157,23 @@ def cost(
         usage: The provider-returned usage object — a plain dict or an SDK
             object (attributes are read directly; nested detail objects
             work either way).
-        tier: `"standard"` (default) or `"batch"`. Batch applies the price
-            entry's `batch_multiplier` to token rates.
+        tier: `"standard"`, `"batch"` or `"priority"`. `None` (default)
+            reads `usage.service_tier` when the provider reports it
+            (Anthropic does; OpenAI's usage object does not, so pass it
+            explicitly there) and falls back to `"standard"`. Batch applies
+            the entry's `batch_multiplier` (and `batch` exceptions).
+            Priority Tier draws on a prepaid capacity commitment with no
+            published per-token price, so it is costed at standard rates
+            and `"priority_tier"` is surfaced in `unpriced`.
+        speed: `"standard"` or `"fast"`; `None` reads `usage.speed`. Fast
+            mode applies the entry's `fast` rate overrides; a model with no
+            fast rates surfaces `"fast_mode"` in `unpriced`.
+        inference_geo: Inference region, e.g. `"us"`; `None` reads
+            `usage.inference_geo`. Applies the entry's `inference_geo`
+            multiplier to every token rate (cache dimensions included); a
+            region the entry does not price surfaces `"inference_geo:<x>"`
+            in `unpriced`. `"global"` (and `"not_available"`, which
+            Anthropic reports on models without the feature) is neutral.
         at: Request timestamp (ISO string, `date`, or `datetime`) used for
             effective-date resolution; `None` uses the latest prices.
         prices: Optional `PriceBook` override; defaults to the bundled book.
@@ -147,10 +183,13 @@ def cost(
     Returns:
         An itemized [`CostBreakdown`][llmcost.engine.CostBreakdown].
     """
+    tier = _detect(usage, "service_tier", tier) or "standard"
     if tier not in _KNOWN_TIERS:
         raise ValueError(
             f"Unknown tier {tier!r}; expected one of {_KNOWN_TIERS}."
         )
+    speed = _detect(usage, "speed", speed) or "standard"
+    geo = _detect(usage, "inference_geo", inference_geo)
     compute = _COMPUTE.get(provider)
     if compute is None:
         raise ValueError(
@@ -165,7 +204,7 @@ def cost(
         _warn_once(provider, model)
         # Run the provider math against an empty entry: every observed
         # dimension has no rate, so all of them surface in `unpriced`.
-        _, unpriced = compute(usage, PriceEntry(rates={}), Decimal(1))
+        _, unpriced = compute(usage, PriceEntry(rates={}), Decimal(1), tier)
         return CostBreakdown(
             provider=provider,
             model=model,
@@ -174,15 +213,32 @@ def cost(
             priced=False,
         )
 
+    extra_unpriced: List[str] = []
     multiplier = Decimal(1)
     if tier == "batch" and entry.batch_multiplier is not None:
         multiplier = entry.batch_multiplier
+    elif tier == "priority":
+        extra_unpriced.append("priority_tier")
+    if speed == "fast":
+        if entry.fast_rates:
+            entry = replace(entry, rates={**entry.rates, **entry.fast_rates})
+        else:
+            extra_unpriced.append("fast_mode")
+    if geo is not None and geo not in _NEUTRAL_GEOS:
+        geo_multiplier = entry.geo_multipliers.get(geo)
+        if geo_multiplier is None:
+            extra_unpriced.append(f"inference_geo:{geo}")
+        else:
+            multiplier *= geo_multiplier
 
-    lines, unpriced = compute(usage, entry, multiplier)
+    lines, unpriced = compute(usage, entry, multiplier, tier)
     return CostBreakdown(
-        provider=provider, model=model, tier=tier, lines=lines, unpriced=unpriced
+        provider=provider,
+        model=model,
+        tier=tier,
+        lines=lines,
+        unpriced=unpriced + extra_unpriced,
     )
-
 
 def estimate(
     provider: str,
@@ -209,9 +265,9 @@ def estimate(
         cached_input_tokens: Portion of the prompt served from the prompt
             cache (billed at the provider's cache-read/cached-input rate).
         cache_write_tokens: Portion of the prompt newly written to the
-            cache. Billed at the cache-write premium on Anthropic; on
-            OpenAI cache writes cost nothing extra, so they simply remain
-            regular input.
+            cache. Billed at the cache-write premium on Anthropic and on
+            OpenAI models that define a `cache_write` rate (GPT-5.6 and
+            later); on earlier OpenAI models writes cost nothing extra.
         cache_ttl: Cache TTL for the written tokens, `"5m"` (default) or
             `"1h"` — selects Anthropic's write rate; ignored for OpenAI.
         tier: `"standard"` or `"batch"`.
@@ -240,12 +296,15 @@ def estimate(
             "cache_creation": {ttl_key: writes},
         }
     else:
-        # OpenAI's `input_tokens` includes the cached portion; writes are
-        # ordinary input.
+        # OpenAI's `input_tokens` includes the cached and written portions.
+        writes = min(cache_write_tokens, input_tokens - cached)
         usage = {
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "input_tokens_details": {"cached_tokens": cached},
+            "input_tokens_details": {
+                "cached_tokens": cached,
+                "cache_write_tokens": writes,
+            },
         }
     return cost(provider, model, usage, tier=tier, at=at, prices=prices)
 

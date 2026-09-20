@@ -38,7 +38,7 @@ def test_unknown_provider_raises():
 
 def test_unknown_tier_raises():
     with pytest.raises(ValueError, match="Unknown tier"):
-        cost("openai", "gpt-5.1", {"input_tokens": 1}, tier="priority")
+        cost("openai", "gpt-5.1", {"input_tokens": 1}, tier="flex")
 
 
 def test_batch_without_multiplier_bills_standard():
@@ -133,11 +133,15 @@ def test_float_token_counts_are_coerced_to_int():
             "input_tokens": 100.0,
             "output_tokens": 0,
             "cache_read_input_tokens": 50.0,
-            "server_tool_use": {"web_search_requests": 2.0},
+            "server_tool_use": {
+                "web_search_requests": 2.0,
+                "code_execution_requests": 1.0,
+            },
         },
     )
     assert {line.dimension: line.quantity for line in a.lines} == {
         "input": 100,
         "cache_read": 50,
+        "web_search": 2,
     }
-    assert a.unpriced == ["web_search"]
+    assert a.unpriced == ["code_execution"]

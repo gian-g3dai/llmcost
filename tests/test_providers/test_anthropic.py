@@ -122,14 +122,32 @@ def test_per_call_server_tools():
 
 
 def test_unpriced_server_tool_is_surfaced():
+    """Code execution is billed by container-hour, which usage cannot
+    express, so it must surface rather than silently cost zero."""
     usage = {
         "input_tokens": 1000,
         "output_tokens": 0,
-        "server_tool_use": {"web_search_requests": 2},
+        "server_tool_use": {"code_execution_requests": 2},
     }
     b = cost("anthropic", MODEL, usage)
-    assert "web_search" in b.unpriced
+    assert "code_execution" in b.unpriced
     assert b.total == Decimal("0.001")  # tokens still costed
+
+
+def test_bundled_book_prices_web_search_and_free_web_fetch():
+    """Web search: $10 per 1,000 searches; web fetch: no additional charge
+    (platform.claude.com/docs/en/about-claude/pricing)."""
+    usage = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "server_tool_use": {"web_search_requests": 3, "web_fetch_requests": 5},
+    }
+    b = cost("anthropic", MODEL, usage)
+    assert {l.dimension: l.amount for l in b.lines} == {
+        "web_search": Decimal("0.03"),
+        "web_fetch": Decimal("0"),
+    }
+    assert b.unpriced == []
 
 
 def test_batch_does_not_discount_per_call():
@@ -180,3 +198,96 @@ def test_zero_and_missing_fields(missing):
     b = cost("anthropic", MODEL, missing or {})
     assert b.total == Decimal(0)
     assert b.lines == []
+
+
+def test_service_tier_auto_detected_from_usage():
+    usage = {"input_tokens": 1_000_000, "output_tokens": 0, "service_tier": "batch"}
+    auto = cost("anthropic", MODEL, usage)
+    assert auto.tier == "batch"
+    assert auto.total == Decimal("0.5")  # half of 1.00
+    # An explicit tier overrides what the usage object says.
+    forced = cost("anthropic", MODEL, usage, tier="standard")
+    assert forced.tier == "standard"
+    assert forced.total == Decimal("1")
+
+
+def test_priority_tier_costed_at_standard_and_surfaced():
+    """Priority Tier bills against a prepaid capacity commitment with no
+    published per-token price, so list-price costing is standard rates plus
+    a marker (platform.claude.com/docs/en/api/service-tiers)."""
+    usage = {"input_tokens": 1_000_000, "output_tokens": 0, "service_tier": "priority"}
+    b = cost("anthropic", MODEL, usage)
+    assert b.tier == "priority"
+    assert b.total == Decimal("1")
+    assert b.unpriced == ["priority_tier"]
+
+
+def test_us_inference_geo_multiplies_every_token_dimension():
+    """`inference_geo: "us"` is 1.1x on all token categories, cache
+    included, for Claude 4.6+ (pricing page, 'Data residency pricing')."""
+    usage = {
+        "input_tokens": 1000,
+        "output_tokens": 100,
+        "cache_read_input_tokens": 10000,
+        "cache_creation": {"ephemeral_5m_input_tokens": 1000},
+        "inference_geo": "us",
+    }
+    us = cost("anthropic", "claude-sonnet-5", usage)
+    assert {l.dimension: l.rate for l in us.lines} == {
+        "input": Decimal("2.200"),
+        "output": Decimal("11.000"),
+        "cache_read": Decimal("0.220"),
+        "cache_write_5m": Decimal("2.750"),
+    }
+    glob = cost("anthropic", "claude-sonnet-5", {**usage, "inference_geo": "global"})
+    assert us.total == glob.total * Decimal("1.1")
+    assert us.unpriced == []
+    # Models that predate the feature report "not_available": neutral too.
+    na = cost("anthropic", MODEL, {**usage, "inference_geo": "not_available"})
+    assert na.unpriced == []
+
+
+def test_geo_stacks_with_batch_and_unknown_geo_is_surfaced():
+    usage = {"input_tokens": 1_000_000, "output_tokens": 0, "inference_geo": "us"}
+    b = cost("anthropic", "claude-sonnet-5", usage, tier="batch")
+    assert b.total == Decimal("1.10")  # 2.00 * 0.5 * 1.1
+    # Haiku 4.5 predates inference_geo; an unpriced region must not pass
+    # silently at 1.0x.
+    h = cost("anthropic", MODEL, usage)
+    assert h.unpriced == ["inference_geo:us"]
+    assert h.total == Decimal("1")
+
+
+def test_fast_mode_rates_and_marker():
+    """Fast mode on Opus 5 / 4.8: $10 in, $50 out, cache multipliers on top
+    (pricing page, 'Fast mode pricing')."""
+    usage = {
+        "input_tokens": 1000,
+        "output_tokens": 100,
+        "cache_read_input_tokens": 1000,
+        "speed": "fast",
+    }
+    fast = cost("anthropic", "claude-opus-5", usage)
+    assert {l.dimension: l.rate for l in fast.lines} == {
+        "input": Decimal("10.00"),
+        "output": Decimal("50.00"),
+        "cache_read": Decimal("1.00"),
+    }
+    assert fast.unpriced == []
+    standard = cost("anthropic", "claude-opus-5", usage, speed="standard")
+    assert standard.total == fast.total / 2
+    # Sonnet 5 has no fast mode pricing: surface, don't silently underbill.
+    s = cost("anthropic", "claude-sonnet-5", usage)
+    assert s.unpriced == ["fast_mode"]
+
+
+def test_retired_models_and_aliases_priced():
+    for model, expected_input in (
+        ("claude-opus-4-20250514", "15.00"),
+        ("claude-sonnet-4-20250514", "3.00"),
+        ("claude-3-5-haiku-20241022", "0.80"),
+        ("claude-3-5-haiku-latest", "0.80"),
+    ):
+        b = cost("anthropic", model, {"input_tokens": 1_000_000})
+        assert b.priced, model
+        assert b.total == Decimal(expected_input), model

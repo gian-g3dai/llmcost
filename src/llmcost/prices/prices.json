@@ -6,7 +6,11 @@
         "claude-opus-4-5-20251101": "claude-opus-4-5",
         "claude-opus-4-1-20250805": "claude-opus-4-1",
         "claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
-        "claude-haiku-4-5-20251001": "claude-haiku-4-5"
+        "claude-haiku-4-5-20251001": "claude-haiku-4-5",
+        "claude-opus-4-20250514": "claude-opus-4",
+        "claude-sonnet-4-20250514": "claude-sonnet-4",
+        "claude-3-5-haiku-20241022": "claude-haiku-3-5",
+        "claude-3-5-haiku-latest": "claude-haiku-3-5"
       },
       "pricing": {
         "claude-fable-5-1": [
@@ -20,7 +24,14 @@
               "cache_write_5m": 12.50,
               "cache_write_1h": 20.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-mythos-5-1": [
@@ -34,7 +45,14 @@
               "cache_write_5m": 12.50,
               "cache_write_1h": 20.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-fable-5": [
@@ -48,7 +66,14 @@
               "cache_write_5m": 12.50,
               "cache_write_1h": 20.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-mythos-5": [
@@ -62,7 +87,14 @@
               "cache_write_5m": 12.50,
               "cache_write_1h": 20.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-opus-5": [
@@ -76,7 +108,21 @@
               "cache_write_5m": 6.25,
               "cache_write_1h": 10.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            },
+            "fast": {
+              "input": 10.00,
+              "output": 50.00,
+              "cache_read": 1.00,
+              "cache_write_5m": 12.50,
+              "cache_write_1h": 20.00
+            }
           }
         ],
         "claude-opus-4-8": [
@@ -90,7 +136,21 @@
               "cache_write_5m": 6.25,
               "cache_write_1h": 10.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            },
+            "fast": {
+              "input": 10.00,
+              "output": 50.00,
+              "cache_read": 1.00,
+              "cache_write_5m": 12.50,
+              "cache_write_1h": 20.00
+            }
           }
         ],
         "claude-opus-4-7": [
@@ -104,7 +164,14 @@
               "cache_write_5m": 6.25,
               "cache_write_1h": 10.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-opus-4-6": [
@@ -118,7 +185,14 @@
               "cache_write_5m": 6.25,
               "cache_write_1h": 10.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-opus-4-5": [
@@ -132,7 +206,11 @@
               "cache_write_5m": 6.25,
               "cache_write_1h": 10.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
           }
         ],
         "claude-opus-4-1": [
@@ -146,7 +224,11 @@
               "cache_write_5m": 18.75,
               "cache_write_1h": 30.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
           }
         ],
         "claude-sonnet-5": [
@@ -160,7 +242,14 @@
               "cache_write_5m": 2.50,
               "cache_write_1h": 4.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-sonnet-4-6": [
@@ -174,7 +263,14 @@
               "cache_write_5m": 3.75,
               "cache_write_1h": 6.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            },
+            "inference_geo": {
+              "us": 1.1
+            }
           }
         ],
         "claude-sonnet-4-5": [
@@ -188,7 +284,11 @@
               "cache_write_5m": 3.75,
               "cache_write_1h": 6.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
           }
         ],
         "claude-haiku-4-5": [
@@ -202,7 +302,65 @@
               "cache_write_5m": 1.25,
               "cache_write_1h": 2.00
             },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
+          }
+        ],
+        "claude-opus-4": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 15.00,
+              "output": 75.00,
+              "cache_read": 1.50,
+              "cache_write_5m": 18.75,
+              "cache_write_1h": 30.00
+            },
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
+          }
+        ],
+        "claude-sonnet-4": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 3.00,
+              "output": 15.00,
+              "cache_read": 0.30,
+              "cache_write_5m": 3.75,
+              "cache_write_1h": 6.00
+            },
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
+          }
+        ],
+        "claude-haiku-3-5": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 0.80,
+              "output": 4.00,
+              "cache_read": 0.08,
+              "cache_write_5m": 1.00,
+              "cache_write_1h": 1.60
+            },
+            "batch_multiplier": 0.5,
+            "per_call": {
+              "web_search": 0.01,
+              "web_fetch": 0
+            }
           }
         ]
       }
@@ -239,6 +397,102 @@
         "gpt-4-turbo-preview": "gpt-4-0125-preview"
       },
       "pricing": {
+        "gpt-6-astra": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 10.00,
+              "cached": 1.00,
+              "cache_write": 12.50,
+              "output": 50.00
+            },
+            "tiers": [
+              {
+                "over_input_tokens": 272000,
+                "rates": {
+                  "input": 20.00,
+                  "cached": 2.00,
+                  "cache_write": 25.00,
+                  "output": 75.00
+                }
+              }
+            ],
+            "batch_multiplier": 0.5
+          }
+        ],
+        "gpt-5.6-sol": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 4.00,
+              "cached": 0.40,
+              "cache_write": 5.00,
+              "output": 20.00
+            },
+            "tiers": [
+              {
+                "over_input_tokens": 272000,
+                "rates": {
+                  "input": 8.00,
+                  "cached": 0.80,
+                  "cache_write": 10.00,
+                  "output": 30.00
+                }
+              }
+            ],
+            "batch_multiplier": 0.5
+          }
+        ],
+        "gpt-5.6-terra": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 2.00,
+              "cached": 0.20,
+              "cache_write": 2.50,
+              "output": 12.00
+            },
+            "tiers": [
+              {
+                "over_input_tokens": 272000,
+                "rates": {
+                  "input": 4.00,
+                  "cached": 0.40,
+                  "cache_write": 5.00,
+                  "output": 18.00
+                }
+              }
+            ],
+            "batch_multiplier": 0.5
+          }
+        ],
+        "gpt-5.6-luna": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 0.20,
+              "cached": 0.02,
+              "cache_write": 0.25,
+              "output": 1.20
+            },
+            "tiers": [
+              {
+                "over_input_tokens": 272000,
+                "rates": {
+                  "input": 0.40,
+                  "cached": 0.04,
+                  "cache_write": 0.50,
+                  "output": 1.80
+                }
+              }
+            ],
+            "batch_multiplier": 0.5
+          }
+        ],
         "gpt-5.5": [
           {
             "effective_from": "2026-09-18",
@@ -285,7 +539,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 0.75, "cached": 0.08, "output": 4.50 },
+            "rates": { "input": 0.75, "cached": 0.075, "output": 4.50 },
             "batch_multiplier": 0.5
           }
         ],
@@ -315,7 +569,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 1.75, "cached": 0.18, "output": 14.00 },
+            "rates": { "input": 1.75, "cached": 0.175, "output": 14.00 },
             "batch_multiplier": 0.5
           }
         ],
@@ -331,7 +585,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 1.25, "cached": 0.13, "output": 10.00 },
+            "rates": { "input": 1.25, "cached": 0.125, "output": 10.00 },
             "batch_multiplier": 0.5
           }
         ],
@@ -339,7 +593,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 1.25, "cached": 0.13, "output": 10.00 },
+            "rates": { "input": 1.25, "cached": 0.125, "output": 10.00 },
             "batch_multiplier": 0.5
           }
         ],
@@ -347,7 +601,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 0.25, "cached": 0.03, "output": 2.00 },
+            "rates": { "input": 0.25, "cached": 0.025, "output": 2.00 },
             "batch_multiplier": 0.5
           }
         ],
@@ -355,7 +609,7 @@
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 0.05, "cached": 0.01, "output": 0.40 },
+            "rates": { "input": 0.05, "cached": 0.005, "output": 0.40 },
             "batch_multiplier": 0.5
           }
         ],
@@ -372,7 +626,10 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 2.00, "cached": 0.50, "output": 8.00 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "gpt-4.1-mini": [
@@ -380,15 +637,21 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 0.40, "cached": 0.10, "output": 1.60 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "gpt-4.1-nano": [
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 0.10, "cached": 0.03, "output": 0.40 },
-            "batch_multiplier": 0.5
+            "rates": { "input": 0.10, "cached": 0.025, "output": 0.40 },
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "gpt-4o": [
@@ -396,23 +659,32 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 2.50, "cached": 1.25, "output": 10.00 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "gpt-4o-mini": [
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 0.15, "cached": 0.08, "output": 0.60 },
-            "batch_multiplier": 0.5
+            "rates": { "input": 0.15, "cached": 0.075, "output": 0.60 },
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "o4-mini": [
           {
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
-            "rates": { "input": 1.10, "cached": 0.28, "output": 4.40 },
-            "batch_multiplier": 0.5
+            "rates": { "input": 1.10, "cached": 0.275, "output": 4.40 },
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "o3": [
@@ -420,7 +692,10 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 2.00, "cached": 0.50, "output": 8.00 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "o3-mini": [
@@ -428,7 +703,10 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 1.10, "cached": 0.55, "output": 4.40 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "o3-pro": [
@@ -444,7 +722,10 @@
             "effective_from": "2026-09-18",
             "unit": "per_1M_tokens",
             "rates": { "input": 15.00, "cached": 7.50, "output": 60.00 },
-            "batch_multiplier": 0.5
+            "batch_multiplier": 0.5,
+            "batch": {
+              "cached": null
+            }
           }
         ],
         "o1-mini": [

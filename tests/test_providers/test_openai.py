@@ -1,7 +1,7 @@
 """Golden tests for OpenAI cost math.
 
 Expected values are hand-computed from the bundled price book:
-gpt-5.1 (input 1.25 / cached 0.13 / output 10.00), gpt-5-pro (input 15 /
+gpt-5.1 (input 1.25 / cached 0.125 / output 10.00), gpt-5-pro (input 15 /
 cached null / output 120), gpt-5.4 (input 2.50 / cached 0.25 / output 15.00,
 long-context tier over 272k: 5.00 / 0.50 / 22.50).
 """
@@ -19,8 +19,8 @@ def test_uncached_cached_split():
         "input_tokens_details": {"cached_tokens": 8000},
     }
     b = cost("openai", "gpt-5.1", usage)
-    # 2000*1.25 + 8000*0.13 + 500*10 = 2500 + 1040 + 5000 = 8540 / 1M
-    assert b.total == Decimal("0.00854")
+    # 2000*1.25 + 8000*0.125 + 500*10 = 2500 + 1000 + 5000 = 8500 / 1M
+    assert b.total == Decimal("0.0085")
     dims = {line.dimension: line.quantity for line in b.lines}
     assert dims == {"input": 2000, "cached_input": 8000, "output": 500}
 
@@ -44,8 +44,8 @@ def test_cached_exceeding_input_clamps_uncached_to_zero():
         "input_tokens_details": {"cached_tokens": 1500},
     }
     b = cost("openai", "gpt-5.1", usage)
-    # uncached = max(1000-1500, 0) = 0; cached 1500*0.13
-    assert b.total == Decimal("0.000195")
+    # uncached = max(1000-1500, 0) = 0; cached 1500*0.125
+    assert b.total == Decimal("0.0001875")
 
 
 def test_long_context_tier_boundary():
@@ -130,7 +130,7 @@ def test_usage_object_with_attributes():
         output_tokens_details=SimpleNamespace(reasoning_tokens=0),
     )
     b = cost("openai", "gpt-5.1", usage)
-    assert b.total == Decimal("0.00854")
+    assert b.total == Decimal("0.0085")
 
 
 def test_dated_model_alias():
@@ -158,8 +158,8 @@ def test_chat_completions_usage_shape():
         },
     }
     b = cost("openai", "gpt-5.1", usage)
-    # 2000*1.25 + 8000*0.13 + 300*10 + 200*10 = 2500 + 1040 + 3000 + 2000
-    assert b.total == Decimal("0.00854")
+    # 2000*1.25 + 8000*0.125 + 300*10 + 200*10 = 2500 + 1000 + 3000 + 2000
+    assert b.total == Decimal("0.0085")
     dims = {line.dimension: line.quantity for line in b.lines}
     assert dims == {
         "input": 2000,
@@ -197,7 +197,7 @@ def test_chat_completions_usage_object_with_attributes():
         prompt_tokens_details=SimpleNamespace(cached_tokens=8000),
         completion_tokens_details=SimpleNamespace(reasoning_tokens=0),
     )
-    assert cost("openai", "gpt-5.1", usage).total == Decimal("0.00854")
+    assert cost("openai", "gpt-5.1", usage).total == Decimal("0.0085")
 
 
 def test_chat_completions_without_details():
@@ -222,3 +222,109 @@ def test_responses_shape_takes_precedence_over_chat_fields():
     b = cost("openai", "gpt-5.1", usage)
     assert b.total == Decimal("0")
     assert b.lines == []
+
+
+def test_batch_keeps_cached_discount_where_provider_does():
+    """gpt-5.1's Batch API row lists cached input at $0.0625 (half of
+    $0.125), so the plain multiplier applies."""
+    usage = {
+        "input_tokens": 10000,
+        "output_tokens": 0,
+        "input_tokens_details": {"cached_tokens": 8000},
+    }
+    b = cost("openai", "gpt-5.1", usage, tier="batch")
+    dims = {line.dimension: line for line in b.lines}
+    assert dims["input"].rate == Decimal("0.625")
+    assert dims["cached_input"].rate == Decimal("0.0625")
+    assert b.total == Decimal("0.00175")  # 2000*0.625 + 8000*0.0625
+
+
+def test_batch_drops_cached_discount_where_provider_does():
+    """gpt-4.1's Batch API row shows no cached-input price ($1.00 input,
+    $4.00 output), so cached tokens bill at the batch input rate — not at
+    half the standard cached rate."""
+    usage = {
+        "input_tokens": 10000,
+        "output_tokens": 0,
+        "input_tokens_details": {"cached_tokens": 8000},
+    }
+    standard = cost("openai", "gpt-4.1", usage)
+    assert {l.dimension: l.rate for l in standard.lines} == {
+        "input": Decimal("2.00"),
+        "cached_input": Decimal("0.50"),
+    }
+    batch = cost("openai", "gpt-4.1", usage, tier="batch")
+    assert {l.dimension: l.rate for l in batch.lines} == {
+        "input": Decimal("1.00"),
+        "cached_input": Decimal("1.00"),
+    }
+    assert batch.total == Decimal("0.01")  # all 10000 tokens at 1.00
+
+
+def test_explicit_batch_rate_overrides_multiplier():
+    from llmcost.book import PriceEntry
+
+    class Book:
+        def get_entry(self, provider, model, at=None):
+            return PriceEntry(
+                rates={"input": Decimal("2.0"), "output": Decimal("4.0")},
+                batch_multiplier=Decimal("0.5"),
+                batch_rates={"output": Decimal("3.0")},
+            )
+
+    usage = {"input_tokens": 1_000_000, "output_tokens": 1_000_000}
+    b = cost("openai", "m", usage, tier="batch", prices=Book())
+    assert {l.dimension: l.rate for l in b.lines} == {
+        "input": Decimal("1.0"),  # multiplier
+        "output": Decimal("3.0"),  # explicit batch rate, not 2.0
+    }
+
+
+def test_cache_write_billed_as_replacement_rate():
+    """gpt-5.6-sol: $4 input, $0.40 cached, $5 cache write, $20 output.
+    Written tokens are a slice of `input_tokens` billed at the write rate
+    instead of the input rate (OpenAI: 'not an additive fee')."""
+    usage = {
+        "input_tokens": 10000,
+        "output_tokens": 100,
+        "input_tokens_details": {"cached_tokens": 6000, "cache_write_tokens": 3000},
+    }
+    b = cost("openai", "gpt-5.6-sol", usage)
+    assert {l.dimension: (l.quantity, l.rate) for l in b.lines} == {
+        "input": (1000, Decimal("4.00")),
+        "cached_input": (6000, Decimal("0.40")),
+        "cache_write": (3000, Decimal("5.00")),
+        "output": (100, Decimal("20.00")),
+    }
+    # 1000*4 + 6000*0.40 + 3000*5 + 100*20 = 4000 + 2400 + 15000 + 2000
+    assert b.total == Decimal("0.0234")
+
+
+def test_cache_write_no_premium_on_models_without_write_rate():
+    """Before GPT-5.6 cache writes carry no charge: written tokens bill at
+    the input rate, so reporting them changes nothing."""
+    with_writes = {
+        "input_tokens": 10000,
+        "output_tokens": 0,
+        "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 4000},
+    }
+    without = {"input_tokens": 10000, "output_tokens": 0}
+    assert (
+        cost("openai", "gpt-5.1", with_writes).total
+        == cost("openai", "gpt-5.1", without).total
+        == Decimal("0.0125")
+    )
+
+
+def test_cache_write_chat_completions_shape_and_long_context():
+    usage = {
+        "prompt_tokens": 300000,
+        "completion_tokens": 0,
+        "prompt_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 300000},
+    }
+    b = cost("openai", "gpt-6-astra", usage)
+    assert [(l.dimension, l.rate) for l in b.lines] == [
+        ("cache_write", Decimal("25.00"))  # long-context write rate
+    ]
+    batch = cost("openai", "gpt-6-astra", usage, tier="batch")
+    assert batch.lines[0].rate == Decimal("12.500")

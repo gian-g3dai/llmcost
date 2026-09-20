@@ -169,3 +169,19 @@ def test_bundled_book_has_current_anthropic_flagships():
             "cache_write_1h": Decimal("20.00"),
         }
         assert entry.batch_multiplier == Decimal("0.5")
+
+
+def test_bundled_book_batch_exceptions_and_write_rates():
+    book = JSONPriceBook()
+    # OpenAI drops the cached-input discount on the Batch API for these.
+    for model in ("gpt-4.1", "gpt-4o", "o3", "o4-mini"):
+        assert book.get_entry("openai", model).batch_rates == {"cached": None}
+    # ...but not for the gpt-5 family.
+    assert book.get_entry("openai", "gpt-5.1").batch_rates == {}
+    # GPT-5.6+ charge 1.25x input for cache writes, standard and long.
+    e = book.get_entry("openai", "gpt-6-astra")
+    assert e.rates["cache_write"] == Decimal("12.50")
+    assert e.tiers[0].rates["cache_write"] == Decimal("25.00")
+    # Cached rates carry full precision (not rounded to cents).
+    assert book.get_entry("openai", "gpt-5.1").rates["cached"] == Decimal("0.125")
+    assert book.get_entry("openai", "gpt-5-nano").rates["cached"] == Decimal("0.005")

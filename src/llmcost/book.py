@@ -91,16 +91,32 @@ class PriceEntry:
         batch_multiplier: Multiplier applied to token rates for `tier="batch"`
             requests; `None` means no batch discount is defined (billed at
             standard rates, per the no-discount convention).
+        batch_rates: Per-dimension exceptions to the batch multiplier, keyed
+            like `rates`. A numeric value is the *final* batch rate for that
+            dimension (the multiplier is not applied on top); `None` means
+            the provider offers no batch discount for that dimension, so it
+            falls back to the batch rate of its base dimension (e.g. OpenAI's
+            `cached: null` bills cached tokens at the batch `input` rate).
+            Ignored for standard-tier requests.
         per_call: Server-side tool name -> dollars per invocation.
         tiers: Long-context repricing tiers, ascending by threshold.
+        fast_rates: Rate overrides applied when the request ran in fast
+            mode (`speed="fast"`), e.g. Anthropic's premium Opus pricing.
+            Empty means fast mode is not priced for this model.
+        geo_multipliers: `inference_geo` value -> multiplier applied to
+            every token rate (e.g. `{"us": 1.1}` for US-only inference on
+            Claude 4.6+). Regions absent from the map are unpriced.
     """
 
     rates: Mapping[str, Rate]
     effective_from: Optional[date] = None
     unit: str = "per_1M_tokens"
     batch_multiplier: Optional[Decimal] = None
+    batch_rates: Mapping[str, Rate] = field(default_factory=dict)
     per_call: Mapping[str, Decimal] = field(default_factory=dict)
     tiers: Tuple[PriceTier, ...] = ()
+    fast_rates: Mapping[str, Rate] = field(default_factory=dict)
+    geo_multipliers: Mapping[str, Decimal] = field(default_factory=dict)
 
 
 @runtime_checkable
@@ -150,8 +166,15 @@ def _entry_from_raw(raw: Mapping[str, Any]) -> PriceEntry:
         effective_from=_parse_date(raw.get("effective_from")),
         unit=raw.get("unit", "per_1M_tokens"),
         batch_multiplier=_to_decimal(raw.get("batch_multiplier")),
+        batch_rates=_rates_from_raw(raw.get("batch", {})),
         per_call=per_call,
         tiers=tuple(sorted(tiers, key=lambda t: t.over_input_tokens)),
+        fast_rates=_rates_from_raw(raw.get("fast", {})),
+        geo_multipliers={
+            k: _to_decimal(v)
+            for k, v in raw.get("inference_geo", {}).items()
+            if v is not None
+        },
     )
 
 
@@ -212,7 +235,8 @@ class JSONPriceBook(_BaseBook):
 
     - **v2** (`schema_version: 2`): `{"providers": {provider: {"models":
       {alias: key}, "pricing": {key: [entry, ...]}}}}` where each entry is
-      effective-dated and may carry `batch_multiplier`, `per_call`, `tiers`.
+      effective-dated and may carry `batch_multiplier`, `batch`, `per_call`,
+      `tiers`, `fast`, `inference_geo`.
     - **legacy flat**: `{provider: {"models": ...,
       "pricing": {key: {rate_key: price}}}}` — each flat rate dict becomes a
       single undated entry.

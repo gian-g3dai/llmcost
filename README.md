@@ -31,7 +31,7 @@ from llmcost import estimate
 # A cache-heavy agent turn: 50k prompt, 40k of it cached, ~2k out
 estimate("openai", "gpt-5.1", input_tokens=50_000,
          cached_input_tokens=40_000, output_tokens=2_000).total
-# Decimal('0.0377')
+# Decimal('0.0375')
 
 estimate("anthropic", "claude-sonnet-5", input_tokens=50_000,
          cached_input_tokens=40_000, output_tokens=2_000).total
@@ -103,12 +103,17 @@ breakdown.lines      # itemized: dimension, quantity, effective rate, amount
 breakdown.unpriced   # anything with no rate (billed zero — never silently)
 ```
 
-Precision needs request context the usage object doesn't carry:
+Request context that changes the price is read from the usage object
+where the provider echoes it (Anthropic reports `service_tier`,
+`inference_geo` and `speed`), and can always be passed explicitly:
 
 ```python
 cost("openai", model, usage,
-     tier="batch",        # Batch API discount
+     tier="batch",        # Batch API discount (OpenAI's usage doesn't say)
      at="2026-03-01")     # cost at the rates in force on that date
+cost("anthropic", model, usage,
+     inference_geo="us",  # 1.1x for US-only inference on Claude 4.6+
+     speed="fast")        # Opus 5 / 4.8 fast-mode pricing
 ```
 
 ## Track spend across calls
@@ -131,10 +136,14 @@ ledger.unpriced               # every (provider, model, dimension) billed zero
 | Prompt-cache **reads** | Billed at the provider's discounted rate (e.g. 0.1× on Anthropic); no rate defined → billed at the input rate, never free |
 | Prompt-cache **writes** (Anthropic) | Billed per TTL bucket from the `cache_creation` 5m/1h split; flat totals fall back to the 5m rate |
 | Cached input (OpenAI) | `input_tokens_details.cached_tokens` (Responses) or `prompt_tokens_details.cached_tokens` (Chat Completions) at the `cached` rate; a `null` rate means no discount |
-| **Batch API** | `tier="batch"` applies the model's batch multiplier to token rates (per-call tool prices are not discounted) |
+| Cache **writes** (OpenAI) | `*_tokens_details.cache_write_tokens` at the `cache_write` rate on models that charge for writes (GPT-5.6 and later, 1.25x input); no premium on earlier models |
+| **Batch API** | `tier="batch"` applies the model's batch multiplier to token rates (per-call tool prices are not discounted), with per-model exceptions where the provider publishes them — e.g. OpenAI offers no cached-input discount in batch on gpt-4.1, gpt-4o and the o-series |
 | **Long-context tiers** | The whole request repriced when input tokens cross the threshold (e.g. 272k on OpenAI) |
 | **Reasoning tokens** | Billed as output, itemized on their own line, never double-billed |
-| **Server-side tools** | Per-invocation pricing (e.g. Anthropic `server_tool_use`) |
+| **Server-side tools** | Per-invocation pricing from `server_tool_use` (Anthropic web search at $0.01/call, web fetch free); code execution is billed by container time and is surfaced as unpriced |
+| **Service tier** | Read from `usage.service_tier` on Anthropic (or pass `tier=`); Priority Tier has no list price and is costed at standard rates with `priority_tier` surfaced |
+| **US-only inference** | `usage.inference_geo == "us"` (or `inference_geo=`) applies the 1.1x multiplier on Claude 4.6+, cache dimensions included |
+| **Fast mode** | `usage.speed == "fast"` (or `speed=`) applies the premium Opus 5 / 4.8 rates; models without fast pricing surface `fast_mode` |
 | **Repricing over time** | Effective-dated price entries; pass `at=` to cost a run at last month's rates |
 
 ## Scope: exact at list price

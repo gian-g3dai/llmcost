@@ -19,8 +19,9 @@ assumptions:
   all (writes carry a premium), and the estimate will honestly say so.
 - Provider billing differences are inherited from
   [`estimate()`][llmcost.engine.estimate]: Anthropic bills writes at the
-  TTL's premium rate and reads at the discounted rate; OpenAI writes cost
-  nothing extra and reads bill at the `cached` rate.
+  TTL's premium rate and reads at the discounted rate; OpenAI reads bill
+  at the `cached` rate and writes at `cache_write` where the model defines
+  one (GPT-5.6 and later), otherwise at the plain input rate.
 
 This is an estimate: real conversations have variable message sizes and
 providers apply their own cache-eligibility rules (e.g. minimum prefix

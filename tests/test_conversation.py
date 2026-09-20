@@ -3,7 +3,7 @@
 Expected values hand-computed from the bundled book:
 claude-haiku-4-5 — input 1.00 / output 5.00 / cache_read 0.10 /
 cache_write_5m 1.25 / cache_write_1h 2.00;
-gpt-5.1 — input 1.25 / cached 0.13 / output 10.00.
+gpt-5.1 — input 1.25 / cached 0.125 / output 10.00.
 
 Shared scenario: 3 turns, 10k system prefix, 1k user message and 2k reply
 per turn. Prompts are therefore 11k, 14k, 17k tokens.
@@ -84,9 +84,9 @@ def test_anthropic_1h_ttl_survives_slow_turns_at_higher_write_rate():
 def test_openai_cached_conversation():
     est = estimate_conversation("openai", "gpt-5.1", **SCENARIO)
     # Turn 0: 11k @1.25 + 2k @10                       = 13750 + 20000
-    # Turn 1: 11k @0.13 + 3k @1.25 + 20000             =  1430 +  3750 + 20000
-    # Turn 2: 14k @0.13 + 3k @1.25 + 20000             =  1820 +  3750 + 20000
-    assert est.total == Decimal("0.0845")
+    # Turn 1: 11k @0.125 + 3k @1.25 + 20000            =  1375 +  3750 + 20000
+    # Turn 2: 14k @0.125 + 3k @1.25 + 20000            =  1750 +  3750 + 20000
+    assert est.total == Decimal("0.084375")
     # OpenAI writes carry no premium, so caching can only help: expiry just
     # degrades to the no-cache total.
     expired = estimate_conversation(

@@ -29,7 +29,7 @@ from ..book import PriceEntry
 
 
 def compute(
-    usage: Any, entry: PriceEntry, multiplier: Decimal
+    usage: Any, entry: PriceEntry, multiplier: Decimal, tier: str = "standard"
 ) -> Tuple[List[CostLine], List[str]]:
     """Cost one Anthropic usage payload against a price entry.
 
@@ -38,6 +38,8 @@ def compute(
         entry: Resolved price entry for the model.
         multiplier: Token-rate multiplier (1 for standard, the entry's
             `batch_multiplier` for batch requests).
+        tier: Request tier; Anthropic's batch discount applies uniformly to
+            every token dimension, so only `multiplier` is consulted.
 
     Returns:
         `(lines, unpriced)` — itemized charges and dimensions billed zero

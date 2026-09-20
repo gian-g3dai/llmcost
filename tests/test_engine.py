@@ -117,3 +117,27 @@ def test_ledger_collects_unpriced():
     with pytest.warns(RuntimeWarning):
         ledger.add(cost("openai", "gpt-unknown", {"input_tokens": 5}))
     assert ledger.unpriced == {("openai", "gpt-unknown", "input")}
+
+
+def test_float_token_counts_are_coerced_to_int():
+    """Some usage payloads carry counts as floats (e.g. after a JSON
+    round-trip through a proxy); they must not crash Decimal arithmetic."""
+    b = cost("openai", "gpt-5.1", {"input_tokens": 1000.0, "output_tokens": 10.0})
+    assert b.total == Decimal("0.00135")  # 1000*1.25 + 10*10 = 1350 / 1M
+    assert all(isinstance(line.quantity, int) for line in b.lines)
+
+    a = cost(
+        "anthropic",
+        "claude-sonnet-5",
+        {
+            "input_tokens": 100.0,
+            "output_tokens": 0,
+            "cache_read_input_tokens": 50.0,
+            "server_tool_use": {"web_search_requests": 2.0},
+        },
+    )
+    assert {line.dimension: line.quantity for line in a.lines} == {
+        "input": 100,
+        "cache_read": 50,
+    }
+    assert a.unpriced == ["web_search"]

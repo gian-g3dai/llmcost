@@ -5,18 +5,29 @@ long-context repricing expressed either as schema-v2 `tiers` entries or as
 the legacy flat keys `input_long` / `cached_long` / `output_long`
 (threshold 272k tokens).
 
-Usage-object mapping (OpenAI `usage` fields):
+Usage-object mapping. Both OpenAI usage shapes are accepted and
+normalized to the same lines:
 
-- `input_tokens` **includes** cached tokens; the cached portion is
-  `input_tokens_details.cached_tokens`, and the uncached remainder
+- **Responses API**: `input_tokens`, `input_tokens_details.cached_tokens`,
+  `output_tokens`, `output_tokens_details.reasoning_tokens`.
+- **Chat Completions API**: `prompt_tokens`,
+  `prompt_tokens_details.cached_tokens`, `completion_tokens`,
+  `completion_tokens_details.reasoning_tokens`.
+
+Field semantics:
+
+- `input_tokens` (`prompt_tokens`) **includes** cached tokens; the cached
+  portion is `input_tokens_details.cached_tokens`
+  (`prompt_tokens_details.cached_tokens`), and the uncached remainder
   (`max(input - cached, 0)`) is billed at `input`.
 - Cached tokens are billed at `cached`; a `null`/missing `cached` rate means
   "no cache discount" — billed at the `input` rate, never free.
 - Long-context tiers reprice the **whole request** (input, cached, output)
   once `input_tokens` exceeds the threshold.
-- Reasoning tokens (`output_tokens_details.reasoning_tokens`) are billed as
-  output; they are itemized on their own line for visibility but never
-  double-billed (the `output` line covers only the non-reasoning remainder).
+- Reasoning tokens (`output_tokens_details.reasoning_tokens` /
+  `completion_tokens_details.reasoning_tokens`) are billed as output; they
+  are itemized on their own line for visibility but never double-billed (the
+  `output` line covers only the non-reasoning remainder).
 """
 
 from __future__ import annotations
@@ -30,6 +41,20 @@ from ..book import PriceEntry
 # Default long-context threshold when the price entry uses the legacy flat
 # `*_long` rate keys instead of explicit `tiers`.
 LONG_CONTEXT_THRESHOLD = 272_000
+
+_MISSING = object()
+
+
+def _first_field(usage: Any, *names: str) -> Any:
+    """Return the first of `names` present on `usage` (Responses-API name
+    first, then its Chat Completions synonym). A present-but-`None` field
+    counts as present, so a Responses payload never falls through to a
+    stale Chat Completions field and vice versa."""
+    for name in names:
+        value = get_field(usage, name, _MISSING)
+        if value is not _MISSING:
+            return value
+    return None
 
 
 def _effective_rates(
@@ -60,7 +85,8 @@ def compute(
     """Cost one OpenAI usage payload against a price entry.
 
     Args:
-        usage: OpenAI usage object or plain dict.
+        usage: OpenAI usage object or plain dict, in either the Responses
+            API or the Chat Completions API shape.
         entry: Resolved price entry for the model.
         multiplier: Token-rate multiplier (1 for standard, the entry's
             `batch_multiplier` for batch requests).
@@ -69,14 +95,18 @@ def compute(
         `(lines, unpriced)` — itemized charges and dimensions billed zero
         for lack of a rate.
     """
-    input_tok = get_field(usage, "input_tokens") or 0
-    output_tok = get_field(usage, "output_tokens") or 0
+    input_tok = _first_field(usage, "input_tokens", "prompt_tokens") or 0
+    output_tok = _first_field(usage, "output_tokens", "completion_tokens") or 0
 
-    input_details = get_field(usage, "input_tokens_details")
+    input_details = _first_field(
+        usage, "input_tokens_details", "prompt_tokens_details"
+    )
     cached = get_field(input_details, "cached_tokens") or 0
     uncached = max(input_tok - cached, 0)
 
-    output_details = get_field(usage, "output_tokens_details")
+    output_details = _first_field(
+        usage, "output_tokens_details", "completion_tokens_details"
+    )
     reasoning = get_field(output_details, "reasoning_tokens") or 0
     reasoning = min(reasoning, output_tok)
 

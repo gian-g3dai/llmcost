@@ -139,3 +139,86 @@ def test_dated_model_alias():
         cost("openai", "gpt-5.1-2025-11-13", usage).total
         == cost("openai", "gpt-5.1", usage).total
     )
+
+
+def test_chat_completions_usage_shape():
+    """Chat Completions reports `prompt_tokens` / `completion_tokens` with
+    `prompt_tokens_details` / `completion_tokens_details`; same math as the
+    Responses shape."""
+    usage = {
+        "prompt_tokens": 10000,
+        "completion_tokens": 500,
+        "total_tokens": 10500,
+        "prompt_tokens_details": {"cached_tokens": 8000, "audio_tokens": 0},
+        "completion_tokens_details": {
+            "reasoning_tokens": 200,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0,
+        },
+    }
+    b = cost("openai", "gpt-5.1", usage)
+    # 2000*1.25 + 8000*0.13 + 300*10 + 200*10 = 2500 + 1040 + 3000 + 2000
+    assert b.total == Decimal("0.00854")
+    dims = {line.dimension: line.quantity for line in b.lines}
+    assert dims == {
+        "input": 2000,
+        "cached_input": 8000,
+        "output": 300,
+        "reasoning": 200,
+    }
+    assert b.unpriced == []
+
+
+def test_chat_completions_matches_responses_shape():
+    chat = {
+        "prompt_tokens": 10000,
+        "completion_tokens": 500,
+        "prompt_tokens_details": {"cached_tokens": 8000},
+        "completion_tokens_details": {"reasoning_tokens": 200},
+    }
+    responses = {
+        "input_tokens": 10000,
+        "output_tokens": 500,
+        "input_tokens_details": {"cached_tokens": 8000},
+        "output_tokens_details": {"reasoning_tokens": 200},
+    }
+    assert (
+        cost("openai", "gpt-5.1", chat).lines
+        == cost("openai", "gpt-5.1", responses).lines
+    )
+
+
+def test_chat_completions_usage_object_with_attributes():
+    usage = SimpleNamespace(
+        prompt_tokens=10000,
+        completion_tokens=500,
+        total_tokens=10500,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=8000),
+        completion_tokens_details=SimpleNamespace(reasoning_tokens=0),
+    )
+    assert cost("openai", "gpt-5.1", usage).total == Decimal("0.00854")
+
+
+def test_chat_completions_without_details():
+    """Older Chat Completions payloads carry no `*_details` blocks."""
+    usage = {"prompt_tokens": 1000, "completion_tokens": 100}
+    b = cost("openai", "gpt-5.1", usage)
+    assert b.total == Decimal("0.00225")  # 1000*1.25 + 100*10 = 2250 / 1M
+    dims = {line.dimension: line.quantity for line in b.lines}
+    assert dims == {"input": 1000, "output": 100}
+
+
+def test_responses_shape_takes_precedence_over_chat_fields():
+    """A payload carrying both shapes (e.g. a proxy that mirrors fields)
+    is read via the Responses fields; explicit zero is not treated as
+    absent."""
+    usage = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "prompt_tokens": 5000,
+        "completion_tokens": 5000,
+    }
+    b = cost("openai", "gpt-5.1", usage)
+    assert b.total == Decimal("0")
+    assert b.lines == []

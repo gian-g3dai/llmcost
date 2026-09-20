@@ -9,6 +9,34 @@
         "claude-haiku-4-5-20251001": "claude-haiku-4-5"
       },
       "pricing": {
+        "claude-fable-5-1": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 10.00,
+              "output": 50.00,
+              "cache_read": 0.25,
+              "cache_write_5m": 12.50,
+              "cache_write_1h": 20.00
+            },
+            "batch_multiplier": 0.5
+          }
+        ],
+        "claude-mythos-5-1": [
+          {
+            "effective_from": "2026-09-18",
+            "unit": "per_1M_tokens",
+            "rates": {
+              "input": 10.00,
+              "output": 50.00,
+              "cache_read": 0.25,
+              "cache_write_5m": 12.50,
+              "cache_write_1h": 20.00
+            },
+            "batch_multiplier": 0.5
+          }
+        ],
         "claude-fable-5": [
           {
             "effective_from": "2026-09-18",

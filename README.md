@@ -95,7 +95,7 @@ dict) — this is authoritative, not an estimate:
 ```python
 from llmcost import cost
 
-response = client.messages.create(...)          # or OpenAI responses.create
+response = client.messages.create(...)          # or OpenAI responses/chat.completions
 breakdown = cost("anthropic", response.model, response.usage)
 
 breakdown.total      # Decimal — exact dollars, no float drift
@@ -130,7 +130,7 @@ ledger.unpriced               # every (provider, model, dimension) billed zero
 |---|---|
 | Prompt-cache **reads** | Billed at the provider's discounted rate (e.g. 0.1× on Anthropic); no rate defined → billed at the input rate, never free |
 | Prompt-cache **writes** (Anthropic) | Billed per TTL bucket from the `cache_creation` 5m/1h split; flat totals fall back to the 5m rate |
-| Cached input (OpenAI) | `input_tokens_details.cached_tokens` at the `cached` rate; a `null` rate means no discount |
+| Cached input (OpenAI) | `input_tokens_details.cached_tokens` (Responses) or `prompt_tokens_details.cached_tokens` (Chat Completions) at the `cached` rate; a `null` rate means no discount |
 | **Batch API** | `tier="batch"` applies the model's batch multiplier to token rates (per-call tool prices are not discounted) |
 | **Long-context tiers** | The whole request repriced when input tokens cross the threshold (e.g. 272k on OpenAI) |
 | **Reasoning tokens** | Billed as output, itemized on their own line, never double-billed |

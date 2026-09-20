@@ -151,3 +151,21 @@ def test_bundled_book_loads_and_aliases():
     # Long-context models carry explicit tiers.
     entry = book.get_entry("openai", "gpt-5.4")
     assert entry.tiers[0].over_input_tokens == 272000
+
+
+def test_bundled_book_has_current_anthropic_flagships():
+    """claude-fable-5-1 / claude-mythos-5-1: $10 in, $50 out, cache read at
+    0.025x ($0.25) rather than the usual 0.1x, writes 1.25x / 2x, batch 50%
+    (platform.claude.com/docs/en/about-claude/pricing)."""
+    book = JSONPriceBook()
+    for model in ("claude-fable-5-1", "claude-mythos-5-1"):
+        entry = book.get_entry("anthropic", model)
+        assert entry is not None, model
+        assert entry.rates == {
+            "input": Decimal("10.00"),
+            "output": Decimal("50.00"),
+            "cache_read": Decimal("0.25"),
+            "cache_write_5m": Decimal("12.50"),
+            "cache_write_1h": Decimal("20.00"),
+        }
+        assert entry.batch_multiplier == Decimal("0.5")
